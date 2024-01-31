@@ -35,18 +35,16 @@ i2s_pin_config_t pin_config = {
 /* Construct BT A2DP Sink */
 BluetoothA2DPSink a2dp_sink;
 
-void setup()
-{
-  /* Create Audio Sink first, so that I2S interface is active. */
-  a2dp_sink.set_pin_config(pin_config);
-  a2dp_sink.start("Example-Music");
+void setup() {
+    /* Create Audio Sink first, so that I2S interface is active. */
+    a2dp_sink.set_pin_config(pin_config);
+    a2dp_sink.start("Example-Music");
 
-  /* TAS5822 should be started AFTER I2S interface (above). */
-  tas5822.begin();
+    /* TAS5822 should be started AFTER I2S interface (above). */
+    tas5822.begin();
 }
 
-void loop()
-{
-  /* Nothing to do */
-  delay(100);
+void loop() {
+    /* Nothing to do */
+    delay(100);
 }

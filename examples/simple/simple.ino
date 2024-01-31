@@ -19,24 +19,22 @@ constexpr uint8_t i2cAddr = 44;
 
 TAS5822::TAS5822<TwoWire> tas5822(Wire, i2cAddr, pdnPin);
 
-void setup()
-{
-  /* This will set initial configuration and leave the TAS5822 ready to play data received over I2S. */
-  tas5822.begin();
+void setup() {
+    /* This will set initial configuration and leave the TAS5822 ready to play data received over I2S. */
+    tas5822.begin();
 
-  /* Set Audio Format */
-  tas5822.writeRegister(TAS5822::Register::SAP_CTRL1, 0b00000000); /* I2S 16-bits */
-  // tas5822.writeRegister(TAS5822::Register::SAP_CTRL1, 0b00000001);  /* I2S 20-bits */
-  // tas5822.writeRegister(TAS5822::Register::SAP_CTRL1, 0b00000010);  /* I2S 24-bits */
-  // tas5822.writeRegister(TAS5822::Register::SAP_CTRL1, 0b00000011);  /* I2S 32-bits */
+    /* Set Audio Format */
+    tas5822.writeRegister(TAS5822::Register::SAP_CTRL1, 0b00000000); /* I2S 16-bits */
+    // tas5822.writeRegister(TAS5822::Register::SAP_CTRL1, 0b00000001);  /* I2S 20-bits */
+    // tas5822.writeRegister(TAS5822::Register::SAP_CTRL1, 0b00000010);  /* I2S 24-bits */
+    // tas5822.writeRegister(TAS5822::Register::SAP_CTRL1, 0b00000011);  /* I2S 32-bits */
 
-  /* Set Analog Gain */
-  tas5822.writeRegister(TAS5822::Register::AGAIN, 0b00011111); // Minimum (-15.5 dBFS)
-  // tas5822.writeRegister(TAS5822::Register::AGAIN, 0b00000000); // Maximum (0 dBFS)
+    /* Set Analog Gain */
+    tas5822.writeRegister(TAS5822::Register::AGAIN, 0b00011111); // Minimum (-15.5 dBFS)
+    // tas5822.writeRegister(TAS5822::Register::AGAIN, 0b00000000); // Maximum (0 dBFS)
 }
 
-void loop()
-{
-  /* Nothing to do */
-  delay(100);
+void loop() {
+    /* Nothing to do */
+    delay(100);
 }

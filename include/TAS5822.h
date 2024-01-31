@@ -7,15 +7,13 @@
 #ifndef _TAS5822_H_
 #define _TAS5822_H_
 
-#include <stdint.h>
 #include <Arduino.h>
+#include <stdint.h>
 
-namespace TAS5822
-{
+namespace TAS5822 {
 
-  /* Register names and offsets as per datasheet */
-  enum class Register : uint8_t
-  {
+/* Register names and offsets as per datasheet */
+enum class Register : uint8_t {
     RESET_CTRL = 0x01,
     DEVICE_CTRL_1 = 0x02,
     DEVICE_CTRL_2 = 0x03,
@@ -59,101 +57,76 @@ namespace TAS5822
     PIN_CONTROL1 = 0x74,
     PIN_CONTROL2 = 0x75,
     FAULT_CLEAR = 0x78,
-  };
+};
 
-  template <typename WIRE>
-  class TAS5822
-  {
-  public:
-    explicit TAS5822(WIRE &wire, uint8_t address, int16_t pdnPin = -1) : mWire(wire), pdnPin(pdnPin)
-    {
-      _i2caddr = address;
+template <typename WIRE> class TAS5822 {
+public:
+    explicit TAS5822(WIRE& wire, uint8_t address, int16_t pdnPin = -1) : mWire(wire), pdnPin(pdnPin) {
+        _i2caddr = address;
     }
 
-    bool begin()
-    {
+    bool begin() {
 
-      mWire.begin();
+        mWire.begin();
 
-      if (pdnPin != -1)
-      {
-        pinMode(pdnPin, OUTPUT);
-        digitalWrite(pdnPin, LOW);
-        delay(10);
-        digitalWrite(pdnPin, HIGH);
-        delay(10);
-      }
+        if (pdnPin != -1) {
+            pinMode(pdnPin, OUTPUT);
+            digitalWrite(pdnPin, LOW);
+            delay(10);
+            digitalWrite(pdnPin, HIGH);
+            delay(10);
+        }
 
-      // DSP Reset + HighZ + Mute
-      if (!writeRegister(Register::DEVICE_CTRL_2, 0x1A))
-      {
-        return false;
-      }
-      delay(5);
+        // DSP Reset + HighZ + Mute
+        if (!writeRegister(Register::DEVICE_CTRL_2, 0x1A)) { return false; }
+        delay(5);
 
-      // Reset DSP and CTL
-      if (!writeRegister(Register::RESET_CTRL, 0x11))
-      {
-        return false;
-      }
-      delay(5);
+        // Reset DSP and CTL
+        if (!writeRegister(Register::RESET_CTRL, 0x11)) { return false; }
+        delay(5);
 
-      // Set Audio format
-      if (!writeRegister(Register::SAP_CTRL1, 0x00))
-      {
-        return false;
-      }
-      delay(1);
+        // Set Audio format
+        if (!writeRegister(Register::SAP_CTRL1, 0x00)) { return false; }
+        delay(1);
 
-      // Set Play + Mute
-      if (!writeRegister(Register::DEVICE_CTRL_2, 0x08))
-      {
-        return false;
-      }
-      delay(1);
+        // Set Play + Mute
+        if (!writeRegister(Register::DEVICE_CTRL_2, 0x08)) { return false; }
+        delay(1);
 
-      // Set Analog Gain to lowest level
-      if (!writeRegister(Register::AGAIN, 0b00011111))
-      {
-        return false;
-      }
-      delay(1);
+        // Set Analog Gain to lowest level
+        if (!writeRegister(Register::AGAIN, 0b00011111)) { return false; }
+        delay(1);
 
-      // Set Play + Unmute
-      if (!writeRegister(Register::DEVICE_CTRL_2, 0x03))
-      {
-        return false;
-      }
-      delay(1);
+        // Set Play + Unmute
+        if (!writeRegister(Register::DEVICE_CTRL_2, 0x03)) { return false; }
+        delay(1);
 
-      return true;
+        return true;
     }
 
-    bool writeRegister(Register reg, uint8_t value)
-    {
-      mWire.beginTransmission(_i2caddr);
-      mWire.write(static_cast<uint8_t>(reg));
-      mWire.write(value);
-      mWire.endTransmission();
-      auto ret = mWire.endTransmission();
-      return (ret == 0);
+    bool writeRegister(Register reg, uint8_t value) {
+        mWire.beginTransmission(_i2caddr);
+        mWire.write(static_cast<uint8_t>(reg));
+        mWire.write(value);
+        mWire.endTransmission();
+        auto ret = mWire.endTransmission();
+        return (ret == 0);
     }
 
-    uint8_t readRegister(Register reg)
-    {
-      mWire.beginTransmission(_i2caddr);
-      mWire.write(static_cast<uint8_t>(reg));
-      mWire.endTransmission();
-      mWire.requestFrom(_i2caddr, uint8_t(1));
-      return mWire.read();
+    uint8_t readRegister(Register reg) {
+        mWire.beginTransmission(_i2caddr);
+        mWire.write(static_cast<uint8_t>(reg));
+        mWire.endTransmission();
+        mWire.requestFrom(_i2caddr, uint8_t(1));
+        return mWire.read();
     }
 
-  private:
+private:
     uint8_t _i2caddr;
-    WIRE &mWire;
+    WIRE& mWire;
     int16_t pdnPin;
-  };
+};
 
-} // namespace _TAS5822_H_
+} // namespace TAS5822
 
 #endif
