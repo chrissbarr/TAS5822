@@ -1,0 +1,48 @@
+name: PlatformIO CI
+
+on:
+  push:
+  schedule:
+    - cron: '0 0 * * *'
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - example: examples/simple
+            boards: "--board=uno --board=teensy31 --board=esp32dev"
+          - example: examples/a2dp_i2s
+            lib-deps: "git+https://github.com/pschatzmann/ESP32-A2DP#v1.7.1"
+            boards: "--board=esp32dev"
+    steps:
+    - uses: actions/checkout@v2
+    - name: Cache pip
+      uses: actions/cache@v2
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    - name: Cache PlatformIO
+      uses: actions/cache@v2
+      with:
+        path: ~/.platformio
+        key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+
+    - name: Install PlatformIO
+      run: |
+        python -m pip install --upgrade pip
+        pip install --upgrade platformio
+
+    - name: Run PlatformIO
+      run: pio ci --lib="." $BOARDS --project-option="lib_deps=$LIB_DEPS"
+      env:
+        PLATFORMIO_CI_SRC: ${{ matrix.example }}
+        BOARDS: ${{ matrix.boards }}
+        LIB_DEPS: ${{ matrix.lib-deps }}

@@ -1,0 +1,25 @@
+{
+    "name": "TAS5822",
+    "version": "0.0.1",
+    "description": "Library for I2C control of the TAS5822 I2S DAC.",
+    "keywords": "i2s, audio, dac, amplifier, i2c",
+    "repository":
+    {
+      "type": "git",
+      "url": "https://github.com/chrissbarr/TAS5822.git"
+    },
+    "authors":
+    [
+      {
+        "name": "Chris Barr",
+        "email": "chris@chrisbarrbuilds.com",
+        "url": "https://www.chrisbarrbuilds.com",
+        "maintainer": true
+      }
+    ],
+    "license": "GPL-3.0-or-later",
+    "homepage": "https://github.com/chrissbarr/TAS5822",
+    "dependencies": {},
+    "frameworks": "arduino",
+    "platforms": "*"
+}
