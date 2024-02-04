@@ -98,7 +98,7 @@ public:
         delay(1);
 
         // Set Analog Gain to lowest level
-        if (!writeRegister(Register::AGAIN, 0b00011111)) { return false; }
+        if (!setAnalogGain(-15.5f)) { return false; }
         delay(1);
 
         // Set Play + Unmute
@@ -133,6 +133,19 @@ public:
         mWire.endTransmission();
         mWire.requestFrom(_i2caddr, uint8_t(1));
         return mWire.read();
+    }
+
+    /**
+     * Set Analog Gain
+     * \param gain Gain to be applied (-15.5 to 0 dBFS)
+     * \return True if I2C transmission completed successfully.
+     */
+    bool setAnalogGain(float gain) {
+        if (gain < -15.5) { gain = -15.5; }
+        if (gain > 0) { gain = 0; }
+        gain = -2.0 * gain;
+        uint8_t gain_int = static_cast<uint8_t>(round(gain));
+        return writeRegister(Register::AGAIN, gain);
     }
 
 private:
