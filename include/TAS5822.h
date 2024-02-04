@@ -108,8 +108,7 @@ public:
         mWire.beginTransmission(_i2caddr);
         mWire.write(static_cast<uint8_t>(reg));
         mWire.write(value);
-        mWire.endTransmission();
-        auto ret = mWire.endTransmission();
+        uint8_t ret = mWire.endTransmission();
         return (ret == 0);
     }
 
