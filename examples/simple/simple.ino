@@ -30,8 +30,11 @@ void setup() {
     // tas5822.writeRegister(TAS5822::Register::SAP_CTRL1, 0b00000011);  /* I2S 32-bits */
 
     /* Set Analog Gain */
+    // by writing register manually
     tas5822.writeRegister(TAS5822::Register::AGAIN, 0b00011111); // Minimum (-15.5 dBFS)
     // tas5822.writeRegister(TAS5822::Register::AGAIN, 0b00000000); // Maximum (0 dBFS)
+    // or via helper function
+    tas5822.setAnalogGain(-4.0 /* dBFS */);
 }
 
 void loop() {
