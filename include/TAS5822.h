@@ -145,7 +145,7 @@ public:
         if (gain > 0) { gain = 0; }
         gain = -2.0 * gain;
         uint8_t gain_int = static_cast<uint8_t>(round(gain));
-        return writeRegister(Register::AGAIN, gain);
+        return writeRegister(Register::AGAIN, gain_int);
     }
 
 private:
