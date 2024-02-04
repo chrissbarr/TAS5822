@@ -27,7 +27,7 @@ jobs:
           ~/.platformio/.cache
         key: ${{ runner.os }}-pio
     - name: Setup Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
     - name: Install PlatformIO
       run: pip install --upgrade platformio
     - name: Run PlatformIO
@@ -49,7 +49,7 @@ jobs:
           ~/.platformio/.cache
         key: ${{ runner.os }}-pio
     - name: Setup Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
     - name: Install PlatformIO
       run: pip install --upgrade platformio
     - name: Run PlatformIO
