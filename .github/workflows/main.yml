@@ -18,28 +18,18 @@ jobs:
             lib-deps: "git+https://github.com/pschatzmann/ESP32-A2DP#v1.7.1"
             boards: "--board=esp32dev"
     steps:
-    - uses: actions/checkout@v2
-    - name: Cache pip
-      uses: actions/cache@v2
+    - uses: actions/checkout@v4
+    - name: Cache
+      uses: actions/cache@v4
       with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
-    - name: Cache PlatformIO
-      uses: actions/cache@v2
-      with:
-        path: ~/.platformio
-        key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
-
-    - name: Set up Python
-      uses: actions/setup-python@v2
-
+        path: |
+          ~/.cache/pip
+          ~/.platformio/.cache
+        key: ${{ runner.os }}-pio
+    - name: Setup Python
+      uses: actions/setup-python@v4
     - name: Install PlatformIO
-      run: |
-        python -m pip install --upgrade pip
-        pip install --upgrade platformio
-
+      run: pip install --upgrade platformio
     - name: Run PlatformIO
       run: pio ci --lib="." $BOARDS --project-option="lib_deps=$LIB_DEPS"
       env:
@@ -50,27 +40,17 @@ jobs:
   run_tests:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
-    - name: Cache pip
-      uses: actions/cache@v2
+    - uses: actions/checkout@v4
+    - name: Cache
+      uses: actions/cache@v4
       with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
-    - name: Cache PlatformIO
-      uses: actions/cache@v2
-      with:
-        path: ~/.platformio
-        key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
-
-    - name: Set up Python
-      uses: actions/setup-python@v2
-
+        path: |
+          ~/.cache/pip
+          ~/.platformio/.cache
+        key: ${{ runner.os }}-pio
+    - name: Setup Python
+      uses: actions/setup-python@v4
     - name: Install PlatformIO
-      run: |
-        python -m pip install --upgrade pip
-        pip install --upgrade platformio
-
+      run: pip install --upgrade platformio
     - name: Run PlatformIO
       run: pio test -e native -v --junit-output-path="test_log.xml"
