@@ -41,6 +41,8 @@ TEST(TAS5822Test, AnalogGainCalculation) {
         {-15, 30},
         {-14.5, 29},
         {-0.5, 1},
+        {-0.4, 1},
+        {-0.1, 0},
         {0, 0},
         {1, 0},
         {100, 0},
@@ -57,10 +59,10 @@ TEST(TAS5822Test, AnalogGainCalculation) {
 
         amp.setAnalogGain(result.first);
 
-        Verify(OverloadedMethod(ArduinoFake(Wire), write, size_t(uint8_t))
-                   .Using(static_cast<uint8_t>(TAS5822::Register::AGAIN)))
-            .Exactly(Once);
-        Verify(OverloadedMethod(ArduinoFake(Wire), write, size_t(uint8_t)).Using(static_cast<uint8_t>(result.second)))
+        Verify(
+            OverloadedMethod(ArduinoFake(Wire), write, size_t(uint8_t))
+                .Using(static_cast<uint8_t>(TAS5822::Register::AGAIN)),
+            OverloadedMethod(ArduinoFake(Wire), write, size_t(uint8_t)).Using(static_cast<uint8_t>(result.second)))
             .Exactly(Once);
     }
 }
