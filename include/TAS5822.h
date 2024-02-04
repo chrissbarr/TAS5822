@@ -65,6 +65,10 @@ public:
         _i2caddr = address;
     }
 
+    /**
+     * Initialises the TAS5822 and leaves it in a playing state.
+     * \return True if initialisation completed successfully.
+     */
     bool begin() {
 
         mWire.begin();
@@ -104,6 +108,12 @@ public:
         return true;
     }
 
+    /**
+     * Writes 8-bit value to given register.
+     * \param reg Register to write to
+     * \param value Value to write
+     * \return True if I2C transmission completed successfully.
+     */
     bool writeRegister(Register reg, uint8_t value) {
         mWire.beginTransmission(_i2caddr);
         mWire.write(static_cast<uint8_t>(reg));
@@ -112,6 +122,11 @@ public:
         return (ret == 0);
     }
 
+    /**
+     * Reads 8-bit value from a given register.
+     * \param reg Register to read from
+     * \return Value read from given register.
+     */
     uint8_t readRegister(Register reg) {
         mWire.beginTransmission(_i2caddr);
         mWire.write(static_cast<uint8_t>(reg));
