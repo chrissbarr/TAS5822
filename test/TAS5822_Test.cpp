@@ -13,25 +13,6 @@
 
 using namespace fakeit;
 
-TEST(TAS5822Test, BasicRegisterWritePattern) {
-
-    TAS5822::TAS5822<TwoWire> amp(Wire, 123, 0);
-
-    When(OverloadedMethod(ArduinoFake(Wire), begin, void(void))).AlwaysReturn();
-    When(OverloadedMethod(ArduinoFake(Wire), beginTransmission, void(uint8_t))).AlwaysReturn();
-    When(OverloadedMethod(ArduinoFake(Wire), write, size_t(uint8_t))).AlwaysReturn(true);
-    When(OverloadedMethod(ArduinoFake(Wire), endTransmission, uint8_t(void))).AlwaysReturn(0);
-
-    amp.writeRegister(TAS5822::Register::DEVICE_CTRL_2, 124);
-
-    Verify(
-        OverloadedMethod(ArduinoFake(Wire), beginTransmission, void(uint8_t)).Using(123),
-        OverloadedMethod(ArduinoFake(Wire), write, size_t(uint8_t))
-            .Using(static_cast<uint8_t>(TAS5822::Register::DEVICE_CTRL_2)),
-        OverloadedMethod(ArduinoFake(Wire), write, size_t(uint8_t)).Using(124))
-        .Exactly(1);
-}
-
 /* Register model is a simplistic model of the I2C register read/write behaviour of the TAS5822. */
 class RegisterModel {
 public:
@@ -44,6 +25,10 @@ public:
         targetReg = 0;
     }
 
+    // Arduino Wire-compatible signature
+
+    void begin() {}
+
     void beginTransmission(uint8_t val) {
         if (val == addr) {
             active = true;
@@ -51,7 +36,10 @@ public:
         }
     }
 
-    void endTransmission() { active = false; }
+    uint8_t endTransmission() {
+        active = false;
+        return 0;
+    }
 
     uint8_t requestFrom(uint8_t address, uint8_t qty) {
         if (address == addr) {
@@ -120,30 +108,30 @@ protected:
 
     RegisterModelTest() : regmodel(defaultAddress) {}
     void SetUp() override {
-
         When(Method(ArduinoFake(), delay)).AlwaysReturn();
-        When(OverloadedMethod(ArduinoFake(Wire), begin, void(void))).AlwaysReturn();
-        When(OverloadedMethod(ArduinoFake(Wire), requestFrom, uint8_t(uint8_t, uint8_t)))
-            .AlwaysDo([&](uint8_t addr, uint8_t num) { return regmodel.requestFrom(addr, num); });
-        When(OverloadedMethod(ArduinoFake(Wire), beginTransmission, void(uint8_t))).AlwaysDo([&](uint8_t v) {
-            regmodel.beginTransmission(v);
-        });
-        When(OverloadedMethod(ArduinoFake(Wire), write, size_t(uint8_t))).AlwaysDo([&](uint8_t v) {
-            return regmodel.write(v);
-        });
-        When(OverloadedMethod(ArduinoFake(Wire), read, int(void))).AlwaysDo([&]() { return regmodel.read(); });
-        When(OverloadedMethod(ArduinoFake(Wire), endTransmission, uint8_t(void))).AlwaysDo([&]() {
-            regmodel.endTransmission();
-            return 0;
-        });
     }
 
     RegisterModel regmodel;
 };
 
+// Check that writeRegister sets value
+TEST_F(RegisterModelTest, BasicRegisterWritePattern) {
+    TAS5822::TAS5822<RegisterModel> amp(regmodel, defaultAddress, -1);
+    amp.writeRegister(TAS5822::Register::DEVICE_CTRL_2, 123);
+    regmodel.registerExistsAndHasValue(TAS5822::Register::DEVICE_CTRL_2, 123);
+}
+
+// Check that readRegister gets value
+TEST_F(RegisterModelTest, BasicRegisterReadPattern) {
+    TAS5822::TAS5822<RegisterModel> amp(regmodel, defaultAddress, -1);
+    regmodel.registers[static_cast<uint8_t>(TAS5822::Register::DEVICE_CTRL_2)] = 121;
+    EXPECT_EQ(static_cast<uint8_t>(121), amp.readRegister(TAS5822::Register::DEVICE_CTRL_2));
+}
+
+// Check state after initialisation is as expected
 TEST_F(RegisterModelTest, DefaultInitialisedState) {
 
-    TAS5822::TAS5822<TwoWire> amp(Wire, defaultAddress, -1);
+    TAS5822::TAS5822<RegisterModel> amp(regmodel, defaultAddress, -1);
 
     // check that constructor writes to no registers
     EXPECT_EQ(static_cast<uint8_t>(0), regmodel.registers.size());
@@ -155,7 +143,7 @@ TEST_F(RegisterModelTest, DefaultInitialisedState) {
 
 TEST_F(RegisterModelTest, MuteCommandWorks) {
 
-    TAS5822::TAS5822<TwoWire> amp(Wire, defaultAddress, -1);
+    TAS5822::TAS5822<RegisterModel> amp(regmodel, defaultAddress, -1);
     amp.begin();
 
     // Set register to known value
@@ -204,17 +192,14 @@ TEST_F(RegisterModelTest, AnalogGainCalculation) {
     for (const auto& result : expectedResults) {
 
         regmodel.reset();
-        TAS5822::TAS5822<TwoWire> amp(Wire, defaultAddress, -1);
+        TAS5822::TAS5822<RegisterModel> amp(regmodel, defaultAddress, -1);
         amp.begin();
 
         // Set Analog Gain from input float
         amp.setAnalogGain(result.first);
 
         // Check that AGAIN register matches expected value
-        regmodel.registerExistsAndHasValue(
-            TAS5822::Register::AGAIN,
-            static_cast<uint8_t>(result.second)
-        );
+        regmodel.registerExistsAndHasValue(TAS5822::Register::AGAIN, static_cast<uint8_t>(result.second));
     }
 }
 
