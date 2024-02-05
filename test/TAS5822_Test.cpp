@@ -32,43 +32,6 @@ TEST(TAS5822Test, BasicRegisterWritePattern) {
         .Exactly(1);
 }
 
-TEST(TAS5822Test, AnalogGainCalculation) {
-
-    TAS5822::TAS5822<TwoWire> amp(Wire, 0, 0);
-
-    // Analog Gain (dBFS) to expected byte value
-    std::vector<std::pair<float, uint8_t>> expectedResults = {
-        {-16, 31},
-        {-15.5, 31},
-        {-15, 30},
-        {-14.5, 29},
-        {-0.5, 1},
-        {-0.4, 1},
-        {-0.1, 0},
-        {0, 0},
-        {1, 0},
-        {100, 0},
-    };
-
-    for (const auto& result : expectedResults) {
-
-        ArduinoFakeReset();
-
-        When(OverloadedMethod(ArduinoFake(Wire), begin, void(void))).AlwaysReturn();
-        When(OverloadedMethod(ArduinoFake(Wire), beginTransmission, void(uint8_t))).AlwaysReturn();
-        When(OverloadedMethod(ArduinoFake(Wire), write, size_t(uint8_t))).AlwaysReturn(true);
-        When(OverloadedMethod(ArduinoFake(Wire), endTransmission, uint8_t(void))).AlwaysReturn(0);
-
-        amp.setAnalogGain(result.first);
-
-        Verify(
-            OverloadedMethod(ArduinoFake(Wire), write, size_t(uint8_t))
-                .Using(static_cast<uint8_t>(TAS5822::Register::AGAIN)),
-            OverloadedMethod(ArduinoFake(Wire), write, size_t(uint8_t)).Using(static_cast<uint8_t>(result.second)))
-            .Exactly(Once);
-    }
-}
-
 /* Register model is a simplistic model of the I2C register read/write behaviour of the TAS5822. */
 class RegisterModel {
 public:
@@ -220,6 +183,39 @@ TEST_F(RegisterModelTest, MuteCommandWorks) {
         0xFF,      /* Expect all other bits have original value */
         0b11110111 /* Inverted Mute bit bit-mask */
     );
+}
+
+TEST_F(RegisterModelTest, AnalogGainCalculation) {
+
+    // Analog Gain (dBFS) to expected AGAIN register value
+    std::vector<std::pair<float, uint8_t>> expectedResults = {
+        {-16, 31},
+        {-15.5, 31},
+        {-15, 30},
+        {-14.5, 29},
+        {-0.5, 1},
+        {-0.4, 1},
+        {-0.1, 0},
+        {0, 0},
+        {1, 0},
+        {100, 0},
+    };
+
+    for (const auto& result : expectedResults) {
+
+        regmodel.reset();
+        TAS5822::TAS5822<TwoWire> amp(Wire, defaultAddress, -1);
+        amp.begin();
+
+        // Set Analog Gain from input float
+        amp.setAnalogGain(result.first);
+
+        // Check that AGAIN register matches expected value
+        regmodel.registerExistsAndHasValue(
+            TAS5822::Register::AGAIN,
+            static_cast<uint8_t>(result.second)
+        );
+    }
 }
 
 int main(int argc, char** argv) {
