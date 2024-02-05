@@ -148,6 +148,22 @@ public:
         return writeRegister(Register::AGAIN, gain_int);
     }
 
+    /**
+     * Enable/disable soft-mute.
+     * \param muted Muted if true, unmuted if false.
+     * \return True if I2C transmission completed successfully.
+     */
+    bool setMuted(bool muted) {
+        // get the current state so we don't overwrite other parameters
+        uint8_t regVal = readRegister(Register::DEVICE_CTRL_2);
+
+        // clear mute bit and set updated value
+        const uint8_t muteBitPos = 3;
+        regVal = (regVal & (~(1 << muteBitPos))) | (static_cast<uint8_t>(muted) << muteBitPos);
+
+        return writeRegister(Register::DEVICE_CTRL_2, regVal);
+    }
+
 private:
     uint8_t _i2caddr;
     WIRE& mWire;
