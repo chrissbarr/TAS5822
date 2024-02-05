@@ -235,6 +235,34 @@ TEST_F(RegisterModelTest, AnalogGainCalculation) {
     }
 }
 
+TEST_F(RegisterModelTest, ControlStateWorks) {
+
+    TAS5822::TAS5822<RegisterModel> amp(regmodel, defaultAddress, -1);
+    amp.begin();
+
+    std::vector<std::pair<TAS5822::CTRL_STATE, uint8_t>> configs = {
+        {TAS5822::CTRL_STATE::DEEP_SLEEP, 0b00},
+        {TAS5822::CTRL_STATE::SLEEP, 0b01},
+        {TAS5822::CTRL_STATE::HIGH_Z, 0b10},
+        {TAS5822::CTRL_STATE::PLAY, 0b11}};
+
+    for (const auto& config : configs) {
+        // set the value
+        amp.setControlState(config.first);
+
+        // confirm correct value set
+        testRegisterHasValue(
+            regmodel,
+            TAS5822::Register::DEVICE_CTRL_2,
+            config.second, /* CTRL_STATE = X */
+            0b00000011  /* CTRL_STATE bit-mask */
+        );
+
+        // confirm that getControlState agrees
+        EXPECT_EQ(amp.getControlState(), config.first);
+    }
+}
+
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     if (RUN_ALL_TESTS())

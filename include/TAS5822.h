@@ -59,6 +59,13 @@ enum class Register : uint8_t {
     FAULT_CLEAR = 0x78,
 };
 
+enum class CTRL_STATE : uint8_t {
+    DEEP_SLEEP = 0x00,
+    SLEEP = 0x01,
+    HIGH_Z = 0x02,
+    PLAY = 0x03
+};
+
 template <typename WIRE> class TAS5822 {
 public:
     explicit TAS5822(WIRE& wire, uint8_t address, int16_t pdnPin = -1) : mWire(wire), pdnPin(pdnPin) {
@@ -161,7 +168,26 @@ public:
         const uint8_t muteBitPos = 3;
         regVal = (regVal & (~(1 << muteBitPos))) | (static_cast<uint8_t>(muted) << muteBitPos);
 
+        // write new value
         return writeRegister(Register::DEVICE_CTRL_2, regVal);
+    }
+
+    bool setControlState(CTRL_STATE state) {
+        // get the current state so we don't overwrite other parameters
+        uint8_t regVal = readRegister(Register::DEVICE_CTRL_2);
+
+        // clear control state and set updated value
+        const uint8_t CTRL_STATE_MASK = 0x03;
+        regVal = (regVal & ~CTRL_STATE_MASK) | (static_cast<uint8_t>(state));
+
+        // write new value
+        return writeRegister(Register::DEVICE_CTRL_2, regVal);
+    }
+
+    CTRL_STATE getControlState() {
+        uint8_t regVal = readRegister(Register::DEVICE_CTRL_2);
+        const uint8_t CTRL_STATE_MASK = 0x03;
+        return static_cast<CTRL_STATE>(regVal & CTRL_STATE_MASK);
     }
 
 private:
