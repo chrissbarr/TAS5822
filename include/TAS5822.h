@@ -59,6 +59,12 @@ enum class Register : uint8_t {
     FAULT_CLEAR = 0x78,
 };
 
+enum class CTRL_STATE : uint8_t { DEEP_SLEEP = 0x00, SLEEP = 0x01, HIGH_Z = 0x02, PLAY = 0x03 };
+
+enum class DATA_FORMAT : uint8_t { I2S = 0x00, TDM = 0x01, RTJ = 0x02, LTJ = 0x03 };
+
+enum class DATA_WORD_LENGTH : uint8_t { b16 = 0x00, b20 = 0x01, b24 = 0x02, b32 = 0x03 };
+
 template <typename WIRE> class TAS5822 {
 public:
     explicit TAS5822(WIRE& wire, uint8_t address, int16_t pdnPin = -1) : mWire(wire), pdnPin(pdnPin) {
@@ -67,6 +73,7 @@ public:
 
     /**
      * Initialises the TAS5822 and leaves it in a playing state.
+     * Note that output is MUTED by default. Call setMuted(false) to unmute.
      * \return True if initialisation completed successfully.
      */
     bool begin() {
@@ -82,28 +89,54 @@ public:
         }
 
         // DSP Reset + HighZ + Mute
-        if (!writeRegister(Register::DEVICE_CTRL_2, 0x1A)) { return false; }
+        if (!writeRegister(Register::DEVICE_CTRL_2, 0b00011010)) {
+            logMessage("Failed to set: DSP Reset + HighZ + Mute");
+            return false;
+        }
         delay(5);
 
-        // Reset DSP and CTL
-        if (!writeRegister(Register::RESET_CTRL, 0x11)) { return false; }
+        // Reset Digital Core + Reset Registers
+        if (!writeRegister(Register::RESET_CTRL, 0b00010001)) {
+            logMessage("Failed to set: Reset Digital Core + Reset Registers");
+            return false;
+        }
         delay(5);
+
+        // DSP Normal + HighZ + Mute
+        if (!writeRegister(Register::DEVICE_CTRL_2, 0b00001010)) {
+            logMessage("Failed to set: DSP Normal + HighZ + Mute");
+            return false;
+        }
 
         // Set Audio format
-        if (!writeRegister(Register::SAP_CTRL1, 0x00)) { return false; }
-        delay(1);
+        if (!setAudioFormat(DATA_FORMAT::I2S)) {
+            logMessage("Failed to set: Audio Format");
+            return false;
+        }
 
-        // Set Play + Mute
-        if (!writeRegister(Register::DEVICE_CTRL_2, 0x08)) { return false; }
-        delay(1);
+        // Set Audio Word Length
+        if (!setAudioWordLength(DATA_WORD_LENGTH::b16)) {
+            logMessage("Failed to set: Audio Word Length");
+            return false;
+        }
+
+        // Set Muted
+        if (!setMuted(true)) {
+            logMessage("Failed to set: Muted");
+            return false;
+        }
+
+        // Set Playing
+        if (!setControlState(CTRL_STATE::PLAY)) {
+            logMessage("Failed to set: Playing");
+            return false;
+        }
 
         // Set Analog Gain to lowest level
-        if (!setAnalogGain(-15.5f)) { return false; }
-        delay(1);
-
-        // Set Play + Unmute
-        if (!writeRegister(Register::DEVICE_CTRL_2, 0x03)) { return false; }
-        delay(1);
+        if (!setAnalogGain(-15.5f)) {
+            logMessage("Failed to set: Analog Gain");
+            return false;
+        }
 
         return true;
     }
@@ -148,10 +181,90 @@ public:
         return writeRegister(Register::AGAIN, gain_int);
     }
 
+    /**
+     * Enable/disable soft-mute.
+     * \param muted Muted if true, unmuted if false.
+     * \return True if I2C transmission completed successfully.
+     */
+    bool setMuted(bool muted) {
+        const uint8_t muteBitPos = 3;
+        return updateRegister(Register::DEVICE_CTRL_2, (1 << muteBitPos), static_cast<uint8_t>(muted) << muteBitPos);
+    }
+
+    /**
+     * Set the current control state.
+     * \param state State, such as CTRL_STATE::PLAY, CTRL_STATE::SLEEP, etc.
+     * \return True if I2C transmission completed successfully.
+     */
+    bool setControlState(CTRL_STATE state) {
+        const uint8_t CTRL_STATE_MASK = 0x03;
+        return updateRegister(Register::DEVICE_CTRL_2, CTRL_STATE_MASK, static_cast<uint8_t>(state));
+    }
+
+    /**
+     * Get the current control state.
+     * \return Current control state, such as CTRL_STATE::PLAY, CTRL_STATE::SLEEP, etc.
+     */
+    CTRL_STATE getControlState() {
+        uint8_t regVal = readRegister(Register::DEVICE_CTRL_2);
+        const uint8_t CTRL_STATE_MASK = 0x03;
+        return static_cast<CTRL_STATE>(regVal & CTRL_STATE_MASK);
+    }
+
+    /**
+     * Set the I2S audio format.
+     * \param format Audio Format, such as DATA_FORMAT::I2S, DATA_FORMAT::LTJ, etc.
+     * \return True if I2C transmission completed successfully.
+     */
+    bool setAudioFormat(DATA_FORMAT format) {
+        const uint8_t FORMAT_MASK = 0b00110000;
+        const uint8_t FORMAT_SHIFT = 0x04;
+        return updateRegister(Register::SAP_CTRL1, FORMAT_MASK, static_cast<uint8_t>(format) << FORMAT_SHIFT);
+    }
+
+    /**
+     * Set the I2S audio word length.
+     * \param length Audio Word Length.
+     * \return True if I2C transmission completed successfully.
+     */
+    bool setAudioWordLength(DATA_WORD_LENGTH length) {
+        const uint8_t LENGTH_MASK = 0b00000011;
+        return updateRegister(Register::SAP_CTRL1, LENGTH_MASK, static_cast<uint8_t>(length));
+    }
+
+    /**
+     * Set a target for debug log messages.
+     * If not set, no log messages will be written.
+     * Any class deriving from Arduino Print (such as Serial)
+     * should be usable as a target.
+     * e.g. setLoggingOutput(&Serial)
+     * \param print Pointer to target Print output.
+     */
+    void setLoggingOutput(Print* print) { logPrint = print; }
+
 private:
     uint8_t _i2caddr;
     WIRE& mWire;
     int16_t pdnPin;
+    Print* logPrint = nullptr;
+
+    void logMessage(const char* msg) {
+        if (logPrint) {
+            logPrint->print("TAS5822: ");
+            logPrint->println(msg);
+        }
+    }
+
+    bool updateRegister(Register reg, uint8_t mask, uint8_t value) {
+        // get the current state so we don't overwrite other parameters
+        uint8_t regVal = readRegister(reg);
+
+        // clear masked area and set updated value
+        regVal = (regVal & ~mask) | value;
+
+        // write new value
+        return writeRegister(reg, regVal);
+    }
 };
 
 } // namespace TAS5822

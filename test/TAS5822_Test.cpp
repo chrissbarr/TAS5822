@@ -6,35 +6,214 @@
 #include <gtest/gtest.h>
 
 /* C++ Standard Library */
+#include <bitset>
+#include <map>
 #include <utility>
 #include <vector>
 
 using namespace fakeit;
 
-TEST(TAS5822Test, BasicRegisterWritePattern) {
+/* Register model is a simplistic model of the I2C register read/write behaviour of the TAS5822. */
+class RegisterModel {
+public:
+    RegisterModel(uint8_t addr) : addr(addr) { reset(); }
 
-    TAS5822::TAS5822<TwoWire> amp(Wire, 123, 0);
+    struct Register {
+        uint8_t value{0};
+        int writeCount{0};
+        int readCount{0};
+    };
 
-    When(OverloadedMethod(ArduinoFake(Wire), begin, void(void))).AlwaysReturn();
-    When(OverloadedMethod(ArduinoFake(Wire), beginTransmission, void(uint8_t))).AlwaysReturn();
-    When(OverloadedMethod(ArduinoFake(Wire), write, size_t(uint8_t))).AlwaysReturn(true);
-    When(OverloadedMethod(ArduinoFake(Wire), endTransmission, uint8_t(void))).AlwaysReturn(0);
+    void reset() {
+        registers.clear();
+        registers.reserve(regMax);
 
-    amp.writeRegister(TAS5822::Register::DEVICE_CTRL_2, 124);
+        for (int i = 0; i < regMax; i++) { registers.push_back(Register()); }
 
-    Verify(
-        OverloadedMethod(ArduinoFake(Wire), beginTransmission, void(uint8_t)).Using(123),
-        OverloadedMethod(ArduinoFake(Wire), write, size_t(uint8_t))
-            .Using(static_cast<uint8_t>(TAS5822::Register::DEVICE_CTRL_2)),
-        OverloadedMethod(ArduinoFake(Wire), write, size_t(uint8_t)).Using(124))
-        .Exactly(1);
+        active = false;
+        writeIndex = 0;
+        targetReg = 0;
+    }
+
+    // Arduino Wire-compatible signature
+
+    void begin() {}
+
+    void beginTransmission(uint8_t val) {
+        if (val == addr) {
+            active = true;
+            writeIndex = 0;
+        }
+    }
+
+    uint8_t endTransmission() {
+        active = false;
+        return 0;
+    }
+
+    uint8_t requestFrom(uint8_t address, uint8_t qty) {
+        if (address == addr) {
+            active = true;
+            return qty;
+        }
+        return 0;
+    }
+
+    bool write(uint8_t val) {
+        if (!active) { return false; }
+
+        switch (writeIndex) {
+        case 0: {
+            targetReg = val;
+            // std::cout << "Selecting Register: " << int(targetReg) << "\n";
+            writeIndex++;
+            break;
+        }
+        case 1: {
+            // std::cout << "Writing Register: " << int(targetReg) << " = " << int(val) << "\n";
+            registers[targetReg].value = val;
+            registers[targetReg].writeCount += 1;
+            writeIndex = 0;
+            break;
+        }
+        }
+        return true;
+    }
+
+    uint8_t read() {
+        if (!active) { return false; }
+        // std::cout << "Reading Register: " << int(targetReg) << " = " << int(registers[targetReg]) << "\n";
+        registers[targetReg].readCount += 1;
+        return registers[targetReg].value;
+    }
+
+    // management methods
+    void setRegister(TAS5822::Register reg, uint8_t value) { registers[static_cast<uint8_t>(reg)].value = value; }
+
+    const Register& getRegister(TAS5822::Register reg) const { return registers[static_cast<uint8_t>(reg)]; }
+
+    const int getTotalRegisterWriteCount() {
+        int count = 0;
+        for (const auto& reg : registers) { count += reg.writeCount; }
+        return count;
+    }
+
+    const int getTotalRegisterReadCount() {
+        int count = 0;
+        for (const auto& reg : registers) { count += reg.writeCount; }
+        return count;
+    }
+
+private:
+    const uint8_t regMax = 255;
+    std::vector<Register> registers;
+    uint8_t addr;
+    bool active = false;
+    int writeIndex = 0;
+    uint8_t targetReg = 0;
+};
+
+void testRegisterWasWritten(RegisterModel& m, TAS5822::Register reg) {
+    int writeCount = m.getRegister(reg).writeCount;
+    EXPECT_GT(writeCount, 0) << "Register " << std::hex << static_cast<int>(reg) << " write count " << writeCount
+                             << " !> 0";
 }
 
-TEST(TAS5822Test, AnalogGainCalculation) {
+void testRegisterHasValue(RegisterModel& m, TAS5822::Register reg, uint8_t value, uint8_t bitmask = 0xFF) {
+    uint8_t actualMasked = (m.getRegister(reg).value & bitmask);
+    uint8_t expectedMasked = (value & bitmask);
+    EXPECT_EQ(expectedMasked, actualMasked)
+        << "Register " << std::hex << static_cast<int>(reg) << " Actual " << std::bitset<8>(actualMasked)
+        << " != " << std::bitset<8>(expectedMasked) << " Expected";
+}
 
-    TAS5822::TAS5822<TwoWire> amp(Wire, 0, 0);
+class RegisterModelTest : public testing::Test {
+protected:
+    const uint8_t defaultAddress{0x44};
 
-    // Analog Gain (dBFS) to expected byte value
+    RegisterModelTest() : regmodel(defaultAddress) {}
+    void SetUp() override { When(Method(ArduinoFake(), delay)).AlwaysReturn(); }
+
+    RegisterModel regmodel;
+};
+
+// Check that writeRegister sets value
+TEST_F(RegisterModelTest, BasicRegisterWritePattern) {
+    TAS5822::TAS5822<RegisterModel> amp(regmodel, defaultAddress, -1);
+    amp.writeRegister(TAS5822::Register::DEVICE_CTRL_2, 123);
+    testRegisterWasWritten(regmodel, TAS5822::Register::DEVICE_CTRL_2);
+    testRegisterHasValue(regmodel, TAS5822::Register::DEVICE_CTRL_2, 123);
+}
+
+// Check that readRegister gets value
+TEST_F(RegisterModelTest, BasicRegisterReadPattern) {
+    TAS5822::TAS5822<RegisterModel> amp(regmodel, defaultAddress, -1);
+    regmodel.setRegister(TAS5822::Register::DEVICE_CTRL_2, 121);
+    EXPECT_EQ(static_cast<uint8_t>(121), amp.readRegister(TAS5822::Register::DEVICE_CTRL_2));
+}
+
+// Check state after initialisation is as expected
+TEST_F(RegisterModelTest, DefaultInitialisedState) {
+
+    TAS5822::TAS5822<RegisterModel> amp(regmodel, defaultAddress, -1);
+
+    // check that constructor writes to no registers
+    EXPECT_EQ(0, regmodel.getTotalRegisterWriteCount());
+    EXPECT_EQ(0, regmodel.getTotalRegisterReadCount());
+
+    amp.begin();
+
+    // check that begin writes to some registers
+    EXPECT_GT(regmodel.getTotalRegisterWriteCount(), 0);
+
+    // check registers have expected values
+    // Expected state is:
+    // 000       - reserved
+    //    0      - DSP reset = normal operation
+    //     1     - Mute = ON
+    //      0    - reserved
+    //       11  - State = Play
+    testRegisterHasValue(regmodel, TAS5822::Register::DEVICE_CTRL_2, 0b00001011);
+}
+
+TEST_F(RegisterModelTest, MuteCommandWorks) {
+
+    TAS5822::TAS5822<RegisterModel> amp(regmodel, defaultAddress, -1);
+    amp.begin();
+
+    // Set register to known value
+    amp.writeRegister(TAS5822::Register::DEVICE_CTRL_2, 0xFF);
+
+    // verify setMuted(true) sets correct bit to correct value
+    amp.setMuted(true);
+    testRegisterHasValue(
+        regmodel,
+        TAS5822::Register::DEVICE_CTRL_2,
+        0b00001000, /* Expect Mute bit is HIGH */
+        0b00001000  /* Mute bit bit-mask */
+    );
+
+    // verify setMuted(false) sets correct bit to correct value
+    amp.setMuted(false);
+    testRegisterHasValue(
+        regmodel,
+        TAS5822::Register::DEVICE_CTRL_2,
+        0b00000000, /* Expect Mute bit is LOW */
+        0b00001000  /* Mute bit bit-mask */
+    );
+
+    // verify no other bits were changed by previous operations
+    testRegisterHasValue(
+        regmodel,
+        TAS5822::Register::DEVICE_CTRL_2,
+        0xFF,      /* Expect all other bits have original value */
+        0b11110111 /* Inverted Mute bit bit-mask */
+    );
+}
+
+TEST_F(RegisterModelTest, AnalogGainCalculation) {
+
+    // Analog Gain (dBFS) to expected AGAIN register value
     std::vector<std::pair<float, uint8_t>> expectedResults = {
         {-16, 31},
         {-15.5, 31},
@@ -50,20 +229,43 @@ TEST(TAS5822Test, AnalogGainCalculation) {
 
     for (const auto& result : expectedResults) {
 
-        ArduinoFakeReset();
+        regmodel.reset();
+        TAS5822::TAS5822<RegisterModel> amp(regmodel, defaultAddress, -1);
+        amp.begin();
 
-        When(OverloadedMethod(ArduinoFake(Wire), begin, void(void))).AlwaysReturn();
-        When(OverloadedMethod(ArduinoFake(Wire), beginTransmission, void(uint8_t))).AlwaysReturn();
-        When(OverloadedMethod(ArduinoFake(Wire), write, size_t(uint8_t))).AlwaysReturn(true);
-        When(OverloadedMethod(ArduinoFake(Wire), endTransmission, uint8_t(void))).AlwaysReturn(0);
-
+        // Set Analog Gain from input float
         amp.setAnalogGain(result.first);
 
-        Verify(
-            OverloadedMethod(ArduinoFake(Wire), write, size_t(uint8_t))
-                .Using(static_cast<uint8_t>(TAS5822::Register::AGAIN)),
-            OverloadedMethod(ArduinoFake(Wire), write, size_t(uint8_t)).Using(static_cast<uint8_t>(result.second)))
-            .Exactly(Once);
+        // Check that AGAIN register matches expected value
+        testRegisterHasValue(regmodel, TAS5822::Register::AGAIN, static_cast<uint8_t>(result.second));
+    }
+}
+
+TEST_F(RegisterModelTest, ControlStateWorks) {
+
+    TAS5822::TAS5822<RegisterModel> amp(regmodel, defaultAddress, -1);
+    amp.begin();
+
+    std::vector<std::pair<TAS5822::CTRL_STATE, uint8_t>> configs = {
+        {TAS5822::CTRL_STATE::DEEP_SLEEP, 0b00},
+        {TAS5822::CTRL_STATE::SLEEP, 0b01},
+        {TAS5822::CTRL_STATE::HIGH_Z, 0b10},
+        {TAS5822::CTRL_STATE::PLAY, 0b11}};
+
+    for (const auto& config : configs) {
+        // set the value
+        amp.setControlState(config.first);
+
+        // confirm correct value set
+        testRegisterHasValue(
+            regmodel,
+            TAS5822::Register::DEVICE_CTRL_2,
+            config.second, /* CTRL_STATE = X */
+            0b00000011  /* CTRL_STATE bit-mask */
+        );
+
+        // confirm that getControlState agrees
+        EXPECT_EQ(amp.getControlState(), config.first);
     }
 }
 

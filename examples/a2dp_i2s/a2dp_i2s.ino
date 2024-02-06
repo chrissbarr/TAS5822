@@ -36,12 +36,30 @@ i2s_pin_config_t pin_config = {
 BluetoothA2DPSink a2dp_sink;
 
 void setup() {
+    Serial.begin(115200);
+    Serial.println("Start setup...");
+
+    /* Uncomment to enable debug logging to Serial */
+    // tas5822.setLoggingOutput(&Serial);
+
     /* Create Audio Sink first, so that I2S interface is active. */
     a2dp_sink.set_pin_config(pin_config);
     a2dp_sink.start("Example-Music");
 
     /* TAS5822 should be started AFTER I2S interface (above). */
-    tas5822.begin();
+    if (!tas5822.begin()) {
+        Serial.println("Error! TAS5822 initialisation failed!");
+        while (true) {}
+    }
+    /* Set Volume */
+    tas5822.setAnalogGain(-16);
+    /* Set Format */
+    tas5822.setAudioFormat(TAS5822::DATA_FORMAT::I2S);
+    tas5822.setAudioWordLength(TAS5822::DATA_WORD_LENGTH::b16);
+    /* Un-Mute */
+    tas5822.setMuted(false);
+
+    Serial.println("Setup finished!");
 }
 
 void loop() {
