@@ -20,8 +20,14 @@ constexpr uint8_t i2cAddr = 44;
 TAS5822::TAS5822<TwoWire> tas5822(Wire, i2cAddr, pdnPin);
 
 void setup() {
+    Serial.begin(115200);
+    Serial.println("Start setup...");
+
     /* This will set initial configuration and leave the TAS5822 ready to play data received over I2S. */
-    tas5822.begin();
+    if (!tas5822.begin()) {
+        Serial.println("Error! TAS5822 initialisation failed!");
+        while (true) {}
+    }
 
     /* Set Audio Format */
     tas5822.writeRegister(TAS5822::Register::SAP_CTRL1, 0b00000000); /* I2S 16-bits */
@@ -35,6 +41,8 @@ void setup() {
     // tas5822.writeRegister(TAS5822::Register::AGAIN, 0b00000000); // Maximum (0 dBFS)
     // or via helper function
     tas5822.setAnalogGain(-4.0 /* dBFS */);
+
+    Serial.println("Setup finished!");
 }
 
 void loop() {
