@@ -177,15 +177,8 @@ public:
      * \return True if I2C transmission completed successfully.
      */
     bool setMuted(bool muted) {
-        // get the current state so we don't overwrite other parameters
-        uint8_t regVal = readRegister(Register::DEVICE_CTRL_2);
-
-        // clear mute bit and set updated value
         const uint8_t muteBitPos = 3;
-        regVal = (regVal & (~(1 << muteBitPos))) | (static_cast<uint8_t>(muted) << muteBitPos);
-
-        // write new value
-        return writeRegister(Register::DEVICE_CTRL_2, regVal);
+        return updateRegister(Register::DEVICE_CTRL_2, (1 << muteBitPos), static_cast<uint8_t>(muted) << muteBitPos);
     }
 
     /**
@@ -194,15 +187,8 @@ public:
      * \return True if I2C transmission completed successfully.
      */
     bool setControlState(CTRL_STATE state) {
-        // get the current state so we don't overwrite other parameters
-        uint8_t regVal = readRegister(Register::DEVICE_CTRL_2);
-
-        // clear control state and set updated value
         const uint8_t CTRL_STATE_MASK = 0x03;
-        regVal = (regVal & ~CTRL_STATE_MASK) | (static_cast<uint8_t>(state));
-
-        // write new value
-        return writeRegister(Register::DEVICE_CTRL_2, regVal);
+        return updateRegister(Register::DEVICE_CTRL_2, CTRL_STATE_MASK, static_cast<uint8_t>(state));
     }
 
     /**
@@ -236,6 +222,17 @@ private:
             logPrint->print("TAS5822: ");
             logPrint->println(msg);
         }
+    }
+
+    bool updateRegister(Register reg, uint8_t mask, uint8_t value) {
+        // get the current state so we don't overwrite other parameters
+        uint8_t regVal = readRegister(reg);
+
+        // clear masked area and set updated value
+        regVal = (regVal & ~mask) | value;
+
+        // write new value
+        return writeRegister(reg, regVal);
     }
 };
 
