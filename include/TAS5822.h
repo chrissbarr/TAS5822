@@ -85,27 +85,48 @@ public:
         }
 
         // DSP Reset + HighZ + Mute
-        if (!writeRegister(Register::DEVICE_CTRL_2, 0b00011010)) { return false; }
+        if (!writeRegister(Register::DEVICE_CTRL_2, 0b00011010)) {
+            logMessage("Failed to set: DSP Reset + HighZ + Mute");
+            return false;
+        }
         delay(5);
 
         // Reset Digital Core + Reset Registers
-        if (!writeRegister(Register::RESET_CTRL, 0b00010001)) { return false; }
+        if (!writeRegister(Register::RESET_CTRL, 0b00010001)) {
+            logMessage("Failed to set: Reset Digital Core + Reset Registers");
+            return false;
+        }
         delay(5);
 
         // DSP Normal + HighZ + Mute
-        if (!writeRegister(Register::DEVICE_CTRL_2, 0b00001010)) { return false; }
+        if (!writeRegister(Register::DEVICE_CTRL_2, 0b00001010)) {
+            logMessage("Failed to set: DSP Normal + HighZ + Mute");
+            return false;
+        }
 
         // Set Audio format
-        if (!writeRegister(Register::SAP_CTRL1, 0x00)) { return false; }
+        if (!writeRegister(Register::SAP_CTRL1, 0x00)) {
+            logMessage("Failed to set: Audio Format");
+            return false;
+        }
 
         // Set Muted
-        if (!setMuted(true)) { return false; }
+        if (!setMuted(true)) {
+            logMessage("Failed to set: Muted");
+            return false;
+        }
 
         // Set Playing
-        if (!setControlState(CTRL_STATE::PLAY)) { return false; }
+        if (!setControlState(CTRL_STATE::PLAY)) {
+            logMessage("Failed to set: Playing");
+            return false;
+        }
 
         // Set Analog Gain to lowest level
-        if (!setAnalogGain(-15.5f)) { return false; }
+        if (!setAnalogGain(-15.5f)) {
+            logMessage("Failed to set: Analog Gain");
+            return false;
+        }
 
         return true;
     }
@@ -185,10 +206,29 @@ public:
         return static_cast<CTRL_STATE>(regVal & CTRL_STATE_MASK);
     }
 
+
+    /**
+     * Set a target for debug log messages.
+     * If not set, no log messages will be written.
+     * Any class deriving from Arduino Print (such as Serial)
+     * should be usable as a target.
+     * e.g. setLoggingOutput(&Serial)
+     * \param print Pointer to target Print output.
+     */
+    void setLoggingOutput(Print* print) { logPrint = print; }
+
 private:
     uint8_t _i2caddr;
     WIRE& mWire;
     int16_t pdnPin;
+    Print* logPrint = nullptr;
+
+    void logMessage(const char* msg) {
+        if (logPrint) {
+            logPrint->print("TAS5822: ");
+            logPrint->println(msg);
+        }
+    }
 };
 
 } // namespace TAS5822

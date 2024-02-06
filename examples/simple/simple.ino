@@ -23,6 +23,9 @@ void setup() {
     Serial.begin(115200);
     Serial.println("Start setup...");
 
+    /* Uncomment to enable debug logging to Serial */
+    // tas5822.setLoggingOutput(&Serial);
+
     /* This will set initial configuration and leave the TAS5822 ready to play data received over I2S. */
     if (!tas5822.begin()) {
         Serial.println("Error! TAS5822 initialisation failed!");

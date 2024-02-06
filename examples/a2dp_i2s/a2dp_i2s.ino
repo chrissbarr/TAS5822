@@ -39,6 +39,9 @@ void setup() {
     Serial.begin(115200);
     Serial.println("Start setup...");
 
+    /* Uncomment to enable debug logging to Serial */
+    // tas5822.setLoggingOutput(&Serial);
+
     /* Create Audio Sink first, so that I2S interface is active. */
     a2dp_sink.set_pin_config(pin_config);
     a2dp_sink.start("Example-Music");
