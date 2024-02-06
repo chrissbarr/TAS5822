@@ -188,6 +188,11 @@ public:
         return writeRegister(Register::DEVICE_CTRL_2, regVal);
     }
 
+    /**
+     * Set the current control state.
+     * \param state State, such as CTRL_STATE::PLAY, CTRL_STATE::SLEEP, etc.
+     * \return True if I2C transmission completed successfully.
+     */
     bool setControlState(CTRL_STATE state) {
         // get the current state so we don't overwrite other parameters
         uint8_t regVal = readRegister(Register::DEVICE_CTRL_2);
@@ -200,12 +205,15 @@ public:
         return writeRegister(Register::DEVICE_CTRL_2, regVal);
     }
 
+    /**
+     * Get the current control state.
+     * \return Current control state, such as CTRL_STATE::PLAY, CTRL_STATE::SLEEP, etc.
+     */
     CTRL_STATE getControlState() {
         uint8_t regVal = readRegister(Register::DEVICE_CTRL_2);
         const uint8_t CTRL_STATE_MASK = 0x03;
         return static_cast<CTRL_STATE>(regVal & CTRL_STATE_MASK);
     }
-
 
     /**
      * Set a target for debug log messages.
