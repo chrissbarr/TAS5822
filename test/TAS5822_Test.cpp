@@ -167,7 +167,13 @@ TEST_F(RegisterModelTest, DefaultInitialisedState) {
     EXPECT_GT(regmodel.getTotalRegisterWriteCount(), 0);
 
     // check registers have expected values
-    testRegisterHasValue(regmodel, TAS5822::Register::DEVICE_CTRL_2, 0b00000011);
+    // Expected state is:
+    // 000       - reserved
+    //    0      - DSP reset = normal operation
+    //     1     - Mute = ON
+    //      0    - reserved
+    //       11  - State = Play
+    testRegisterHasValue(regmodel, TAS5822::Register::DEVICE_CTRL_2, 0b00001011);
 }
 
 TEST_F(RegisterModelTest, MuteCommandWorks) {

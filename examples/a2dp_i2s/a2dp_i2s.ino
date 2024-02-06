@@ -42,6 +42,10 @@ void setup() {
 
     /* TAS5822 should be started AFTER I2S interface (above). */
     tas5822.begin();
+    /* Set Volume */
+    tas5822.setAnalogGain(-16);
+    /* Un-Mute */
+    tas5822.setMuted(false);
 }
 
 void loop() {

@@ -59,12 +59,7 @@ enum class Register : uint8_t {
     FAULT_CLEAR = 0x78,
 };
 
-enum class CTRL_STATE : uint8_t {
-    DEEP_SLEEP = 0x00,
-    SLEEP = 0x01,
-    HIGH_Z = 0x02,
-    PLAY = 0x03
-};
+enum class CTRL_STATE : uint8_t { DEEP_SLEEP = 0x00, SLEEP = 0x01, HIGH_Z = 0x02, PLAY = 0x03 };
 
 template <typename WIRE> class TAS5822 {
 public:
@@ -74,6 +69,7 @@ public:
 
     /**
      * Initialises the TAS5822 and leaves it in a playing state.
+     * Note that output is MUTED by default. Call setMuted(false) to unmute.
      * \return True if initialisation completed successfully.
      */
     bool begin() {
@@ -89,28 +85,27 @@ public:
         }
 
         // DSP Reset + HighZ + Mute
-        if (!writeRegister(Register::DEVICE_CTRL_2, 0x1A)) { return false; }
+        if (!writeRegister(Register::DEVICE_CTRL_2, 0b00011010)) { return false; }
         delay(5);
 
-        // Reset DSP and CTL
-        if (!writeRegister(Register::RESET_CTRL, 0x11)) { return false; }
+        // Reset Digital Core + Reset Registers
+        if (!writeRegister(Register::RESET_CTRL, 0b00010001)) { return false; }
         delay(5);
+
+        // DSP Normal + HighZ + Mute
+        if (!writeRegister(Register::DEVICE_CTRL_2, 0b00001010)) { return false; }
 
         // Set Audio format
         if (!writeRegister(Register::SAP_CTRL1, 0x00)) { return false; }
-        delay(1);
 
-        // Set Play + Mute
-        if (!writeRegister(Register::DEVICE_CTRL_2, 0x08)) { return false; }
-        delay(1);
+        // Set Muted
+        if (!setMuted(true)) { return false; }
+
+        // Set Playing
+        if (!setControlState(CTRL_STATE::PLAY)) { return false; }
 
         // Set Analog Gain to lowest level
         if (!setAnalogGain(-15.5f)) { return false; }
-        delay(1);
-
-        // Set Play + Unmute
-        if (!writeRegister(Register::DEVICE_CTRL_2, 0x03)) { return false; }
-        delay(1);
 
         return true;
     }
