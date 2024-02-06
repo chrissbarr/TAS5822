@@ -61,6 +61,10 @@ enum class Register : uint8_t {
 
 enum class CTRL_STATE : uint8_t { DEEP_SLEEP = 0x00, SLEEP = 0x01, HIGH_Z = 0x02, PLAY = 0x03 };
 
+enum class DATA_FORMAT : uint8_t { I2S = 0x00, TDM = 0x01, RTJ = 0x02, LTJ = 0x03 };
+
+enum class DATA_WORD_LENGTH : uint8_t { b16 = 0x00, b20 = 0x01, b24 = 0x02, b32 = 0x03 };
+
 template <typename WIRE> class TAS5822 {
 public:
     explicit TAS5822(WIRE& wire, uint8_t address, int16_t pdnPin = -1) : mWire(wire), pdnPin(pdnPin) {
@@ -105,8 +109,14 @@ public:
         }
 
         // Set Audio format
-        if (!writeRegister(Register::SAP_CTRL1, 0x00)) {
+        if (!setAudioFormat(DATA_FORMAT::I2S)) {
             logMessage("Failed to set: Audio Format");
+            return false;
+        }
+
+        // Set Audio Word Length
+        if (!setAudioWordLength(DATA_WORD_LENGTH::b16)) {
+            logMessage("Failed to set: Audio Word Length");
             return false;
         }
 
@@ -199,6 +209,27 @@ public:
         uint8_t regVal = readRegister(Register::DEVICE_CTRL_2);
         const uint8_t CTRL_STATE_MASK = 0x03;
         return static_cast<CTRL_STATE>(regVal & CTRL_STATE_MASK);
+    }
+
+    /**
+     * Set the I2S audio format.
+     * \param format Audio Format, such as DATA_FORMAT::I2S, DATA_FORMAT::LTJ, etc.
+     * \return True if I2C transmission completed successfully.
+     */
+    bool setAudioFormat(DATA_FORMAT format) {
+        const uint8_t FORMAT_MASK = 0b00110000;
+        const uint8_t FORMAT_SHIFT = 0x04;
+        return updateRegister(Register::SAP_CTRL1, FORMAT_MASK, static_cast<uint8_t>(format) << FORMAT_SHIFT);
+    }
+
+    /**
+     * Set the I2S audio word length.
+     * \param length Audio Word Length.
+     * \return True if I2C transmission completed successfully.
+     */
+    bool setAudioWordLength(DATA_WORD_LENGTH length) {
+        const uint8_t LENGTH_MASK = 0b00000011;
+        return updateRegister(Register::SAP_CTRL1, LENGTH_MASK, static_cast<uint8_t>(length));
     }
 
     /**

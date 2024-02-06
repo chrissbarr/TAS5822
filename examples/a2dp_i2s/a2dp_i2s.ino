@@ -53,6 +53,9 @@ void setup() {
     }
     /* Set Volume */
     tas5822.setAnalogGain(-16);
+    /* Set Format */
+    tas5822.setAudioFormat(TAS5822::DATA_FORMAT::I2S);
+    tas5822.setAudioWordLength(TAS5822::DATA_WORD_LENGTH::b16);
     /* Un-Mute */
     tas5822.setMuted(false);
 

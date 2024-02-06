@@ -33,17 +33,20 @@ void setup() {
     }
 
     /* Set Audio Format */
-    tas5822.writeRegister(TAS5822::Register::SAP_CTRL1, 0b00000000); /* I2S 16-bits */
-    // tas5822.writeRegister(TAS5822::Register::SAP_CTRL1, 0b00000001);  /* I2S 20-bits */
-    // tas5822.writeRegister(TAS5822::Register::SAP_CTRL1, 0b00000010);  /* I2S 24-bits */
-    // tas5822.writeRegister(TAS5822::Register::SAP_CTRL1, 0b00000011);  /* I2S 32-bits */
+    tas5822.setAudioFormat(TAS5822::DATA_FORMAT::I2S);
+    // tas5822.setAudioFormat(TAS5822::DATA_FORMAT::LTJ);
+    // tas5822.setAudioFormat(TAS5822::DATA_FORMAT::RTJ);
+    // tas5822.setAudioFormat(TAS5822::DATA_FORMAT::TDM);
+    tas5822.setAudioWordLength(TAS5822::DATA_WORD_LENGTH::b16);
+    // tas5822.setAudioWordLength(TAS5822::DATA_WORD_LENGTH::b20);
+    // tas5822.setAudioWordLength(TAS5822::DATA_WORD_LENGTH::b24);
+    // tas5822.setAudioWordLength(TAS5822::DATA_WORD_LENGTH::b32);
 
     /* Set Analog Gain */
-    // by writing register manually
-    tas5822.writeRegister(TAS5822::Register::AGAIN, 0b00011111); // Minimum (-15.5 dBFS)
-    // tas5822.writeRegister(TAS5822::Register::AGAIN, 0b00000000); // Maximum (0 dBFS)
-    // or via helper function
     tas5822.setAnalogGain(-4.0 /* dBFS */);
+
+    /* Un-Mute */
+    tas5822.setMuted(false);
 
     Serial.println("Setup finished!");
 }
